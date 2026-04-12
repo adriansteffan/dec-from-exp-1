@@ -1,0 +1,18 @@
+problem,risky_high,risky_high_p,risky_low,risky_low_p,safe,ev_risky,rrate_desc,rrate_samp,desc_prefers,samp_prefers,ev_max,rrate_diff,domain,treasure_disaster,category,ev_max_condition
+E42,17.9,0.92,7.2,0.08,17.1,16.95,0.15,0.8,Safe,Risky,Safe,0.65,Gain,Disaster,Gain RD,D
+C44,20.7,0.90,9.1,0.10,19.8,19.54,0.15,0.55,Safe,Risky,Safe,0.4,Gain,Disaster,Gain RD,D
+C57,5.3,0.90,1.5,0.10,4.7,4.92,0.3,0.65,Safe,Risky,Risky,0.35,Gain,Disaster,Gain RD,E
+C45,8.4,0.07,1.2,0.93,1.6,1.704,0.9,0.25,Risky,Safe,Risky,0.65,Gain,Treasure,Gain RTr,D
+C46,22.6,0.40,7.2,0.60,12.4,13.36,0.75,0.3,Risky,Safe,Risky,0.45,Gain,Treasure,Gain RTr,D
+E5,-1.7,0.90,-3.9,0.10,-1.9,-1.92,0.3,0.8,Safe,Risky,Safe,0.5,Loss,Disaster,Loss RD,D
+C14,-6.4,0.20,-22.4,0.80,-18,-19.2,0.7,0.15,Risky,Safe,Safe,0.55,Loss,Disaster,Loss RD,E
+C17,-2.2,0.92,-11.5,0.08,-3.4,-2.936,0.25,0.65,Safe,Risky,Risky,0.4,Loss,Disaster,Loss RD,E
+E8,-0.7,0.10,-6.5,0.90,-6,-5.92,0.75,0.2,Risky,Safe,Risky,0.55,Loss,Treasure,Loss RTr,D
+E4,-10.0,0.20,-29.2,0.80,-25.6,-25.36,0.85,0.3,Risky,Safe,Risky,0.55,Loss,Treasure,Loss RTr,D
+C9,-5.6,0.10,-19.4,0.90,-18.1,-18.02,0.75,0.2,Risky,Safe,Risky,0.55,Loss,Treasure,Loss RTr,E
+E22,9.6,0.91,-6.4,0.09,8.7,8.16,0.05,0.7,Safe,Risky,Safe,0.65,Mixed,Disaster,Mixed RD,D
+E23,7.3,0.80,-3.6,0.20,5.6,5.12,0.15,0.7,Safe,Risky,Safe,0.55,Mixed,Disaster,Mixed RD,D
+C28,3.3,0.91,-3.5,0.09,2.7,2.706,0.25,0.65,Safe,Risky,Risky,0.4,Mixed,Disaster,Mixed RD,E
+E21,2.0,0.10,-5.7,0.90,-4.6,-4.93,0.65,0.2,Risky,Safe,Safe,0.45,Mixed,Treasure,Mixed RTr,E
+C26,8.9,0.10,-1.4,0.90,-0.9,-0.27,0.7,0.25,Risky,Safe,Safe,0.45,Mixed,Treasure,Mixed RTr,E
+E38,6.7,0.07,-6.2,0.93,-5.1,-5.321,0.65,0.2,Risky,Safe,Safe,0.45,Mixed,Treasure,Mixed RTr,E
