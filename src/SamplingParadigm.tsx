@@ -48,7 +48,11 @@ registerSimulation('SamplingParadigm', (trialProps, _es, simulators, participant
       const { deck, rt } = res.value as { deck: number; rt: number };
       time += rt;
       if (deck === -1) break;
-      samples.push({ deck, value: drawFromDistribution(dists[deck]), order: i, timestamp: time });
+      const newSample = { deck, value: drawFromDistribution(dists[deck]), order: i, timestamp: time };
+      samples.push(newSample);
+      if (simulators.rememberSample) {
+        participant = simulators.rememberSample({ sample: newSample, allSamples: samples }, participant).participantState;
+      }
     }
   }
 
@@ -71,23 +75,33 @@ registerSimulation('SamplingParadigm', (trialProps, _es, simulators, participant
     ? [shared]
     : samples.map((s) => ({ ...s, ...shared }));
 
-  const lastSampling = {
-    samples, finalChoice: labels[idx], finalChoiceIndex: idx,
+  const rememberedSamples = participant.currentTrialMemory ?? samples;
+  const trialKey = Object.keys(participant.trialMemory ?? {}).length;
+  const trialEntry = {
+    samples: rememberedSamples,
+    finalChoice: labels[idx], finalChoiceIndex: idx,
     ...(trialProps.hideResult ? {} : { finalValue }),
   };
 
   return {
     responseData,
-    participantState: { ...participant, lastSampling },
+    participantState: {
+      ...participant,
+      currentTrialMemory: undefined,
+      trialMemory: { ...(participant.trialMemory ?? {}), [trialKey]: trialEntry },
+    },
     duration: samplingDuration + decisionDuration,
   };
 }, {
-  sampleSingle: (tp: any, participant: any) => {
-    if ((tp.samplesSoFar?.length ?? 0) >= 15) return { value: { deck: -1, rt: 0 }, participantState: participant };
+  sampleSingle: (_tp: any, participant: any) => {
+    if ((participant.currentTrialMemory?.length ?? 0) >= 15) return { value: { deck: -1, rt: 0 }, participantState: participant };
     return { value: { deck: uniform(0, 1) > 0.5 ? 0 : 1, rt: uniform(300, 1500) }, participantState: participant };
   },
-  decide: (trialProps: any, participant: any) => {
-    const samples: Sample[] = trialProps.samples || [];
+  rememberSample: ({ sample }: any, participant: any) => {
+    return { participantState: { ...participant, currentTrialMemory: [...(participant.currentTrialMemory ?? []), sample] } };
+  },
+  decide: (_trialProps: any, participant: any) => {
+    const samples: Sample[] = participant.currentTrialMemory ?? [];
     const means = [0, 1].map((d) =>
       mean(samples.filter((s) => s.deck === d).map((s) => s.value))
     );

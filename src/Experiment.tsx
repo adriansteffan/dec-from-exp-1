@@ -24,19 +24,22 @@ const VOICE_RECORDING_PROMPT = 'Please describe the decision you just made to a 
 
 const simulationConfig = {
   seed: 42,
-  participants: () => sampleParticipants('sobol', 50, {
+  participants: () => sampleParticipants('sobol', 2, {
     sampleCount: { distribution: 'discrete', outcomes: [{ value: 5, weight: 1 }, { value: 20, weight: 1 }, { value: 60, weight: 1 }] },
   }),
 };
 
 const samplingSimulators = {
-  sampleSingle: (tp: any, p: any) => {
-    if ((tp.samplesSoFar?.length ?? 0) >= (p.sampleCount ?? 20))
+  sampleSingle: (_tp: any, p: any) => {
+    if ((p.currentTrialMemory?.length ?? 0) >= (p.sampleCount ?? 20))
       return { value: { deck: -1, rt: 0 }, participantState: p };
     return { value: { deck: uniform(0, 1) > 0.5 ? 0 : 1, rt: uniform(300, 1500) }, participantState: p };
   },
-  decide: (tp: any, p: any) => {
-    const samples: any[] = tp.samples || [];
+  rememberSample: ({ sample }: any, p: any) => {
+    return { participantState: { ...p, currentTrialMemory: [...(p.currentTrialMemory ?? []), sample] } };
+  },
+  decide: (_tp: any, p: any) => {
+    const samples: any[] = p.currentTrialMemory ?? [];
     const means = [0, 1].map((d: number) =>
       mean(samples.filter((s: any) => s.deck === d).map((s: any) => s.value))
     );
@@ -47,8 +50,10 @@ const samplingSimulators = {
 
 const voiceRecordingSimulators = {
   respondTTS: async (_input: any, participant: any) => {
-    const s = participant.lastSampling;
-    const samplingLog = s
+    const trials = participant.trialMemory ?? {};
+    const keys = Object.keys(trials);
+    const s = keys.length ? trials[keys[keys.length - 1]] : null;
+    const samplingLog = s?.samples?.length
       ? s.samples.map((d: any) => `Drew ${d.value} from Lottery ${d.deck === 0 ? 'A' : 'B'}`).join('; ')
       : 'no samples available';
     const choice = s ? `You chose Lottery ${s.finalChoice}${s.finalValue != null ? ` and received ${s.finalValue.toFixed(1)}` : ' (you were not shown the result)'}.` : '';
