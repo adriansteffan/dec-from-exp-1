@@ -63,7 +63,7 @@
   },
   "dependencies": {
     "@adriansteffan/immersive-mode": "0.0.1",
-    "@adriansteffan/reactive": "^0.2.5",
+    "@adriansteffan/reactive": "^0.2.6",
     "@capacitor/android": "^7.0.1",
     "@capacitor/core": "^7.0.1",
     "@capacitor/filesystem": "^7.0.0",

@@ -26,7 +26,8 @@ interface SamplingParadigmProps extends BaseComponentProps {
   decisionOnly?: boolean;
   introAnimation?: boolean;
   decimalPlaces?: number;
-  headings?: Partial<Record<Phase, string>>;
+  headings?: Partial<Record<Phase, React.ReactNode | string>>;
+  wideLayout?: boolean;
 }
 
 function drawFromDistribution({ type, ...rest }: DistributionConfig): number {
@@ -174,7 +175,7 @@ function Deck({ label, onClick, disabled, side, animate: introAnimation = true }
 }
 
 export default function SamplingParadigm({
-  next, distributions, labels = ['A', 'B'], keys, hideResult = false, decisionOnly = false, introAnimation = true, decimalPlaces = 1, headings: customHeadings,
+  next, distributions, labels = ['A', 'B'], keys, hideResult = false, decisionOnly = false, introAnimation = true, decimalPlaces = 1, headings: customHeadings, wideLayout = false,
 }: SamplingParadigmProps) {
   const th = t(useTheme());
   const [phase, setPhase] = useState<Phase>(decisionOnly ? 'deciding' : 'sampling');
@@ -248,7 +249,7 @@ export default function SamplingParadigm({
   };
 
   const defaultHeadings: Record<Phase, string> = {
-    sampling: 'Click the lotteries to draw a result!',
+    sampling: 'Click the lotteries to draw an outcome!',
     deciding: 'Which lottery do you want to draw your reward from?',
     result: "Here's your result!",
     saved: 'Your choice has been saved!',
@@ -258,18 +259,20 @@ export default function SamplingParadigm({
   const showMiddle = !(hideResult && phase !== 'sampling');
   const decided = phase === 'result' || phase === 'saved';
 
+  // In wide mode, card lands offset from center (left for deck 0, right for deck 1)
+  const cardRestX = wideLayout ? (latestCard ? (latestCard.deck === 0 ? -96 : 96) : 0) : 0;
   const cardInitial = (deck: number) => ({
     opacity: 1, x: deck === 0 ? -200 : 200, scale: 0.8,
   });
 
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center ${th.containerBg} p-8 overflow-hidden`}>
-      <h2 className={`text-2xl font-bold ${th.text} text-center mb-16`}>
+      <h2 className={`text-2xl font-bold ${th.text} mb-16 ${typeof heading === 'string' ? 'text-center' : ''}`}>
         {heading}
       </h2>
 
       {/* Decks + middle card area */}
-      <div className="flex items-center justify-center gap-12">
+      <div className={`flex items-center justify-center ${wideLayout && showMiddle ? 'gap-4' : 'gap-12'} transition-[gap] duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)]`}>
         <AnimatePresence>
           {[0, 1].map((idx) => {
             const side = idx === 0 ? 'left' as const : 'right' as const;
@@ -303,20 +306,20 @@ export default function SamplingParadigm({
 
           {/* nitpicky UI thing: mt-[8px] aligns with the top deck card, which is offset by the stacked layers below it */}
           {showMiddle && (
-            <motion.div layout={hideResult} className="w-44 h-60 flex items-center justify-center relative mt-[8px]" style={{ order: 1 }}>
+            <motion.div layout={hideResult} className={`${wideLayout ? 'w-[24rem]' : 'w-44'} h-60 flex items-center justify-center relative mt-[8px]`} style={{ order: 1 }}>
               {phase === 'deciding' && !hideResult && !latestCard && (
                 <span className={`text-3xl font-black ${th.text} select-none`}>vs.</span>
               )}
-              {samples.length === 0 && phase === 'sampling' && (
+              {samples.length === 0 && phase === 'sampling' && !wideLayout && (
                 <div className="absolute inset-0 border-2 border-dashed border-gray-300 rounded-xl" />
               )}
               <AnimatePresence mode="wait">
                 {latestCard && (
                   <motion.div
                     key={latestCard.key}
-                    className="absolute inset-0 bg-white border-2 border-black rounded-xl flex items-center justify-center select-none"
+                    className={`${wideLayout ? 'w-44 h-60 absolute top-0' : 'absolute inset-0'} bg-white border-2 border-black rounded-xl flex items-center justify-center select-none`}
                     initial={cardInitial(latestCard.deck)}
-                    animate={CARD_ANIMATE}
+                    animate={{ ...CARD_ANIMATE, x: cardRestX }}
                     exit={CARD_EXIT}
                     transition={CARD_TRANSITION}
                   >

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ExperimentRunner, sampleParticipants, invokeLLM, uniform, getParam, sample, selectPrevTrialData, mean, sum, prepareTimeline } from '@adriansteffan/reactive';
+import { ExperimentRunner, sampleParticipants, prolificId, invokeLLM, uniform, getParam, sample, selectPrevTrialData, mean, prepareTimeline } from '@adriansteffan/reactive';
 import SamplingParadigm from './SamplingParadigm';
 import Papa from 'papaparse';
 import problemsCsv from './problems.csv?raw';
@@ -19,14 +19,17 @@ interface Problem {
 
 const problems = Papa.parse<Problem>(problemsCsv, { header: true, dynamicTyping: true, skipEmptyLines: true }).data;
 
-const VOICE_RECORDING_PROMPT = 'Please describe the decision you just made to a participant in an upcoming study. They will have to make the same decision as you, but your description will be their main source of information. (So unlike you, they will not be able to search for information themselves but will go straight to the decision screen after reading your description.) So please include all the information you think is valuable to make an informed decision (their bonus payment will also depend on their decision and therefore on the quality of the description you provide).';
+const VOICE_RECORDING_PROMPT = 'Please describe the two options you just had to decide between to a participant in an upcoming study. They will have to make a choice between the same two lotteries as you, but your description will be their main source of information. (So unlike you, they will not be able to search for information themselves but will go straight to the decision screen after reading your description.) Please include all the information you think is valuable to make an informed decision, including your personal reasons, as their bonus payment will also depend on their decision and therefore on the quality of the description you provide.';
 
 
 const simulationConfig = {
   seed: 42,
-  participants: () => sampleParticipants('sobol', 2, {
+  participants: () => sampleParticipants('sobol', 10, {
     sampleCount: { distribution: 'discrete', outcomes: [{ value: 5, weight: 1 }, { value: 20, weight: 1 }, { value: 60, weight: 1 }] },
-  }),
+  }).map((p: any) => ({
+    ...p,
+    urlParams: { PROLIFIC_PID: prolificId() },
+  })),
 };
 
 const samplingSimulators = {
@@ -116,6 +119,23 @@ const trialConfigs: TrialConfig[] = (() => {
   });
 })();
 
+function scoreTrials(data: any[]) {
+  const trials = data.filter((d: any) => d.type === 'SamplingParadigm');
+  const scores = trials.map((d: any) => {
+    const row = Array.isArray(d.responseData) ? d.responseData[0] : d.responseData;
+    const choseRisky = row?.finalChoiceIndex === d.riskyDeckIndex;
+    if (!choseRisky) return 5;
+    const isRare = Math.abs(row?.finalValue - d.rareOutcomeValue) < 0.01;
+    if (d.treasureDisaster === 'Disaster') return isRare ? 0 : 6;
+    return isRare ? 10 : 4;
+  });
+  const meanScore = Math.min(mean(scores), 8);
+  const hasShortRecording = data.filter((d: any) => d.type === 'VoiceRecording')
+    .some((r: any) => (r.responseData?.recordingDuration ?? 0) < minRecordingDuration);
+  const bonus = hasShortRecording ? 0 : Math.max(0, ((meanScore - 2) / (8 - 2)) * 1.5);
+  return { scores, meanScore, hasShortRecording, bonus };
+}
+
 function makeSamplingTrial(tc: TrialConfig, name: string) {
   const { distributions, ...metadata } = tc;
   return {
@@ -128,7 +148,8 @@ function makeSamplingTrial(tc: TrialConfig, name: string) {
       labels: ['A', 'B'] as [string, string],
       keys: samplingKeys,
       hideResult: true,
-      headings: { saved: 'Your choice has been saved, you will see the outcome at the end of the experiment!' },
+      wideLayout: true,
+      headings: { saved: <>The outcome has been drawn from your chosen lottery.<br />You will see it at the end of the experiment!</> },
     },
     simulators: samplingSimulators,
   };
@@ -143,22 +164,30 @@ function makeSamplingInstruction(name: string, ordinal = 'next') {
       animate: true,
       centered: true,
       content: (
-        <p>
-          The {ordinal} trial is about to start. Please collect information about the two lotteries you can choose between by clicking the buttons on screen. Once you are ready to make a decision, click "Proceed to decision" to indicate which lottery you choose to determine part of your bonus payment.
-        </p>
+        <>
+          <p>The {ordinal} trial is about to start.</p>
+          <p>Please collect information about the two lotteries you can choose between by clicking the buttons on screen.</p>
+          <p>Once you are ready to make a decision, click "Proceed to decision" to indicate which lottery you choose to determine part of your bonus payment.</p>
+        </>
       ),
     },
   };
 }
 
-function makeVoiceRecording(name: string) {
+function makeVoiceRecording(name: string, isRepeat = false) {
   return {
     name,
     type: 'VoiceRecording',
     props: {
-      content: <p>{VOICE_RECORDING_PROMPT}</p>,
+      content: (
+        <>
+          <p>{VOICE_RECORDING_PROMPT}</p>
+          {isRepeat && <p><strong>Please note:</strong> Your second description will be given to a different participant than the first, so please <strong>do not leave anything out</strong> that you said the first time, the repetition is necessary!</p>}
+        </>
+      ),
       minDuration: minRecordingDuration,
-      shortRecordingWarning: 'Your recording seems quite short. Please consider adding more detail to your description so the next participant can make an informed decision and you get the full reward for the study. You can press the recording button again to add more or use the trash button to start over.',
+      shortRecordingWarning: <>Your recording seems quite short. Please add more detail so the next participant can make an informed choice. You can press the record button again to continue or use the trash button to start over.<br /><strong>If you proceed without adding to your recording, you will forego your bonus payment.</strong></>,
+      silenceWarningSec: 5,
       animate: true,
     },
     simulators: voiceRecordingSimulators,
@@ -184,22 +213,68 @@ const experiment = prepareTimeline([
     name: 'welcome',
     type: 'Text',
     props: {
-      buttonText: 'I Agree',
+      buttonText: 'Continue',
       animate: true,
       content: (
         <>
           <h1><strong>Welcome!</strong></h1>
           <p>
-            Thank you for your interest in this study. This experiment will take approximately <strong>10 minutes</strong> to complete.
+            Thank you for your interest in this study. This experiment will take approximately <strong>7 minutes</strong> to complete.
           </p>
           <p>
-            You will be presented with a decision-making task involving lotteries. At the end, we will ask you about your experience - you don't have to type anything, we will <strong>record your voice</strong>.
+            You will be presented with a decision-making task involving lotteries. At the end, we will ask you about your experience - you won't have to type anything, we will <strong>record your voice</strong>.
           </p>
           <p>
             The recording itself will <strong>not</strong> be used for anything other than transcribing (ensuring that it is anonymous). The transcribed text will be processed further for research purposes.
           </p>
           <p>
-            By clicking "I Agree" below, you confirm that you consent to having your voice recorded and transcribed as described above.
+            Please click the button below to proceed to the consent page.
+          </p>
+        </>
+      ),
+    },
+  },
+  {
+    name: 'consent',
+    type: 'Text',
+    props: {
+      buttonText: 'I Agree',
+      animate: true,
+      content: (
+        <>
+          <h1><strong>Informed Consent</strong></h1>
+          <h3><strong>Participating in this Study</strong></h3>
+          <p>
+            Participation in this study is voluntary. You can withdraw at any time without indication of a reason by closing the browser window and returning your participation on Prolific before having completed the study. After withdrawing, however, you will not be allowed to participate again.
+          </p>
+          <p>
+            The study will take approximately 7 minutes, during which you will be asked to make simple decisions about lotteries.
+          </p>
+          <h3><strong>Privacy</strong></h3>
+          <p>
+            With the exception of your Prolific ID, no identifying data will be collected. Only Prolific can identify you through your Prolific ID.
+          </p>
+          <p>
+            Your voice recording will be transcribed and only the transcription will be used for analysis. The recording will be deleted after the transcription is checked for quality.
+          </p>
+          <h3><strong>De-identified Data</strong></h3>
+          <p>
+            The results and the de-identified data of this study will be published as part of scientific publications. The fully de-identified dataset will be openly available online in the interest of openness and transparency of science.
+          </p>
+          <h3><strong>Conscientious Participation</strong></h3>
+          <p>
+            Please take participation in this study seriously. Developing and conducting scientific studies takes a lot of time and money. We rely on your conscientious participation for the validity of our results.
+          </p>
+          <h3><strong>Remuneration</strong></h3>
+          <p>
+            For full participation in this study you will receive £0.75 via Prolific as base payment. In addition, you may receive a bonus payment of up to £1.50 that is dependent on your performance in the study. The bonus payment will be paid separately via Prolific.
+          </p>
+          <h3><strong>Consent</strong></h3>
+          <p>
+            I hereby confirm that I have understood the above information and agree to participate in the study.
+          </p>
+          <p>
+            Please proceed with the study only if you intend to participate conscientiously and without interruptions. Otherwise, please go back to Prolific and return the study so another participant can partake.
           </p>
         </>
       ),
@@ -213,28 +288,12 @@ const experiment = prepareTimeline([
     },
   },
   {
-    name: 'consent',
-    type: 'Text',
-    props: {
-      buttonText: 'I Agree',
-      animate: true,
-      content: (
-        <>
-          <h1><strong>Informed Consent</strong></h1>
-          <p>[Some legal consent talk here]</p>
-          <p>
-            If you agree, please click the button below. Otherwise, please go back to Prolific and return the study so another participant can partake.
-          </p>
-        </>
-      ),
-    },
-  },
-  {
     name: 'enter_fullscreen',
     type: 'EnterFullscreen',
     props: {
       animate: true,
       buttonText: 'Enter Fullscreen Mode',
+      keepFullscreen: true,
       content: (
         <p>
           This experiment works best in fullscreen mode. <br />
@@ -253,16 +312,16 @@ const experiment = prepareTimeline([
         <>
           <h1><strong>Task Instructions</strong></h1>
           <p>
-            You will be making a few decisions between two lotteries, represented by two buttons on the screen.
+            You will be making a few decisions between lotteries, represented by two buttons on the screen. There will be at most 5 trials, each with two phases:
           </p>
           <p>
             In the <strong>search phase</strong>, you can collect information about the current two lotteries by clicking them and seeing a randomly drawn outcome. Once you feel you know enough to make a decision, you can proceed to the next phase.
           </p>
           <p>
-            In the <strong>decision phase</strong>, you will click one of the two lotteries and receive a randomly drawn outcome that will count towards your total balance. You will not see what the consequential outcomes are until the end of the experiment.
+            In the <strong>decision phase</strong>, you will click one of the two lotteries to receive a randomly drawn outcome that will count towards your bonus. In this phase, you will not see what the outcome is. You will be shown all the lottery outcomes that resulted from your decisions at the end of the experiment.
           </p>
           <p>
-            How well you perform will determine your bonus payment, which can range from <strong>£0 to £1</strong>.
+            How well you perform will determine your bonus payment, which can <strong>amount to a maximum of £1.50</strong>.
           </p>
         </>
       ),
@@ -286,7 +345,7 @@ const experiment = prepareTimeline([
     makeVoiceRecording('voicerecording_1'),
     makeSamplingInstruction('instruction_test_2'),
     makeSamplingTrial(trialConfigs[3], 'test_2'),
-    makeVoiceRecording('voicerecording_2'),
+    makeVoiceRecording('voicerecording_2', true),
   ]},
   { type: 'IF_BLOCK', cond: (_d: any, store: any) => !store.rareEventSeen, timeline: [
     makeSamplingInstruction('instruction_test_1'),
@@ -294,14 +353,19 @@ const experiment = prepareTimeline([
     makeVoiceRecording('voicerecording_1'),
     makeSamplingInstruction('instruction_test_2'),
     makeSamplingTrial(trialConfigs[4], 'test_2'),
-    makeVoiceRecording('voicerecording_2'),
+    makeVoiceRecording('voicerecording_2', true),
   ]},
+  { type: 'UPDATE_STORE', fun: (data: any) => {
+    const { scores, meanScore, hasShortRecording, bonus } = scoreTrials(data);
+    return { scores, meanScore, hasShortRecording, bonus };
+  }},
   {
     name: 'upload',
     type: 'Upload',
-    props: {
+    props: (_data: any, store: any) => ({
       autoUpload: false,
-    },
+      sessionData: { bonus: store.bonus, meanScore: store.meanScore, hasShortRecording: store.hasShortRecording },
+    }),
   },
   {
     name: 'exit_fullscreen',
@@ -311,7 +375,7 @@ const experiment = prepareTimeline([
   {
     name: 'finaltext',
     type: 'Text',
-    props: (data: any) => {
+    props: (data: any, store: any) => {
       const prolificCode = import.meta.env?.VITE_PROLIFIC_CODE || 'PROLIFIC_CODE_HERE';
 
       const trials = data.filter((d: any) => d.type === 'SamplingParadigm');
@@ -320,11 +384,7 @@ const experiment = prepareTimeline([
         return { trial: i + 1, name: d.name, choice: row?.finalChoice ?? '?', value: row?.finalValue ?? 0 };
       });
 
-      const hasShortRecording = data.filter((d: any) => d.type === 'VoiceRecording')
-        .some((r: any) => (r.responseData?.recordingDuration ?? 0) < minRecordingDuration);
-      const totalPoints = sum(outcomes.map((o: any) => o.value));
-      // TODO: use actual transformation formula
-      const bonus = hasShortRecording ? 0 : totalPoints;
+      const { scores, hasShortRecording, bonus } = store;
       const cell = { border: '1px solid #ccc', padding: '8px' };
 
       return {
@@ -339,14 +399,16 @@ const experiment = prepareTimeline([
                   <th style={{ ...cell, textAlign: 'left' }}>Trial</th>
                   <th style={{ ...cell, textAlign: 'left' }}>Chosen Lottery</th>
                   <th style={{ ...cell, textAlign: 'right' }}>Outcome</th>
+                  <th style={{ ...cell, textAlign: 'right' }}>Score</th>
                 </tr>
               </thead>
               <tbody>
-                {outcomes.map((o: any) => (
+                {outcomes.map((o: any, i: number) => (
                   <tr key={o.trial}>
                     <td style={cell}>{o.trial}</td>
                     <td style={cell}>{o.choice}</td>
                     <td style={{ ...cell, textAlign: 'right' }}>{o.value.toFixed(1)}</td>
+                    <td style={{ ...cell, textAlign: 'right' }}>{scores[i]}</td>
                   </tr>
                 ))}
               </tbody>
@@ -363,6 +425,21 @@ const experiment = prepareTimeline([
             <p>
               Your Prolific completion code is: <strong>{prolificCode}</strong>, you can also <a href={`https://app.prolific.com/submissions/complete?cc=${prolificCode}`} target="_blank" rel="noopener noreferrer">click here to return to Prolific and complete your submission.</a>
             </p>
+            <hr style={{ margin: '1.5rem 0', borderColor: '#ccc' }} />
+            <details>
+              <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>About this study (click to read)</summary>
+              <div style={{ marginTop: '0.75rem' }}>
+                <p>
+                  The aim of this study is to examine decision making between risky options (e.g. lotteries) when the options are experienced through drawing outcomes from them. In further studies, we will compare this type of information about options with others: statistical summaries of the probabilities of the lotteries and, thanks to you, written transcriptions of people's spontaneous descriptions.
+                </p>
+                <p>
+                  Depending on what aspects the descriptions emphasise, we expect participants' decision behaviour in the next experiments to be closer to the experience-based condition or the statistical-summary condition.
+                </p>
+                <p>
+                  Your participation is very valuable to us and we want to thank you very much! Feel free to contact us if you would like to be notified of scientific publications based on your data.
+                </p>
+              </div>
+            </details>
           </>
         ),
       };

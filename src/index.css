@@ -1,10 +1,22 @@
 @import '@adriansteffan/reactive/style.css';
 @import 'tailwindcss';
+
+@font-face {
+  font-family: 'Besley';
+  src: url('./fonts/Besley-VariableFont_wght.ttf') format('truetype');
+  font-weight: 400 900;
+  font-display: swap;
+}
 @plugin '@tailwindcss/typography';
 
 @theme {
   --font-*: initial;
   --font-atkinson: Atkinson Hyperlegible, sans-serif;
+  --font-besley: Besley, serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-besley);
 }
 
 @source '../node_modules/@adriansteffan/reactive/dist/**/*.{js,jsx,ts,tsx}';
