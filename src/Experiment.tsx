@@ -19,7 +19,17 @@ interface Problem {
 
 const problems = Papa.parse<Problem>(problemsCsv, { header: true, dynamicTyping: true, skipEmptyLines: true }).data;
 
-const VOICE_RECORDING_PROMPT = 'Please describe the two options you just had to decide between to a participant in an upcoming study. They will have to make a choice between the same two lotteries as you, but your description will be their main source of information. (So unlike you, they will not be able to search for information themselves but will go straight to the decision screen after reading your description.) Please include all the information you think is valuable to make an informed decision, including your personal reasons, as their bonus payment will also depend on their decision and therefore on the quality of the description you provide.';
+const VOICE_RECORDING_PARAGRAPHS = [
+  'Please describe the two options you just had to decide between for a participant in an upcoming study. They will have to make a choice between the same two lotteries as you, but your description will be their main source of information.',
+  'So unlike you, they will not be able to search for information themselves but will go straight to the decision screen after reading your description.',
+  'Please include all the information you think is valuable to make an informed decision, including your personal reasons, as their bonus payment will also depend on their decision and therefore on the quality of the description you provide.',
+];
+
+const VOICE_RECORDING_PROMPT = VOICE_RECORDING_PARAGRAPHS.join('\n');
+
+const VoiceRecordingBody = () => (
+  <>{VOICE_RECORDING_PARAGRAPHS.map((p, i) => <p key={i}>{p}</p>)}</>
+);
 
 
 const simulationConfig = {
@@ -179,10 +189,16 @@ function makeVoiceRecording(name: string, isRepeat = false) {
     name,
     type: 'VoiceRecording',
     props: {
-      content: (
+      content: isRepeat ? (
         <>
-          <p>{VOICE_RECORDING_PROMPT}</p>
-          {isRepeat && <p><strong>Please note:</strong> Your second description will be given to a different participant than the first, so please <strong>do not leave anything out</strong> that you said the first time, the repetition is necessary!</p>}
+          <p>You will now record your experience again, but please note that this description will be given to a <strong>different participant</strong>, so do not be afraid to repeat aspects of your first description, the repetition is necessary.</p>
+          <p>A reminder of the previous instructions:</p>
+          <VoiceRecordingBody />
+        </>
+      ) : (
+        <>
+          <p>We will now ask you to record your experience with your microphone, <strong>so please read the following instructions carefully!</strong></p>
+          <VoiceRecordingBody />
         </>
       ),
       minDuration: minRecordingDuration,
@@ -219,7 +235,7 @@ const experiment = prepareTimeline([
         <>
           <h1><strong>Welcome!</strong></h1>
           <p>
-            Thank you for your interest in this study. This experiment will take approximately <strong>7 minutes</strong> to complete.
+            Thank you for your interest in this study. It will take approximately <strong>7 minutes</strong> to complete.
           </p>
           <p>
             You will be presented with a decision-making task involving lotteries. At the end, we will ask you about your experience - you won't have to type anything, we will <strong>record your voice</strong>.
@@ -384,7 +400,7 @@ const experiment = prepareTimeline([
         return { trial: i + 1, name: d.name, choice: row?.finalChoice ?? '?', value: row?.finalValue ?? 0 };
       });
 
-      const { scores, hasShortRecording, bonus } = store;
+      const { hasShortRecording, bonus } = store;
       const cell = { border: '1px solid #ccc', padding: '8px' };
 
       return {
@@ -399,16 +415,14 @@ const experiment = prepareTimeline([
                   <th style={{ ...cell, textAlign: 'left' }}>Trial</th>
                   <th style={{ ...cell, textAlign: 'left' }}>Chosen Lottery</th>
                   <th style={{ ...cell, textAlign: 'right' }}>Outcome</th>
-                  <th style={{ ...cell, textAlign: 'right' }}>Score</th>
                 </tr>
               </thead>
               <tbody>
-                {outcomes.map((o: any, i: number) => (
+                {outcomes.map((o: any) => (
                   <tr key={o.trial}>
                     <td style={cell}>{o.trial}</td>
                     <td style={cell}>{o.choice}</td>
                     <td style={{ ...cell, textAlign: 'right' }}>{o.value.toFixed(1)}</td>
-                    <td style={{ ...cell, textAlign: 'right' }}>{scores[i]}</td>
                   </tr>
                 ))}
               </tbody>
