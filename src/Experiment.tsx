@@ -361,7 +361,7 @@ const experiment = prepareTimeline([
       content: (
         <>
           <p>Before you begin, you will get the chance to familiarise yourself with the basic task structure in a practice round, which will not count towards your bonus.</p>
-          <p>To make sure you will get a precise impression, you will need to draw a minimum of 20 outcomes from the two lotteries.</p>
+          <p>To make sure you will get a precise impression, you will need to draw <strong>a minimum of 20 outcomes</strong> from the two lotteries.</p>
         </>
       ),
     },
