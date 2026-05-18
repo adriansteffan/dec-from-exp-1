@@ -28,6 +28,9 @@ interface SamplingParadigmProps extends BaseComponentProps {
   decimalPlaces?: number;
   headings?: Partial<Record<Phase, React.ReactNode | string>>;
   wideLayout?: boolean;
+  minSamples?: number;
+  inactiveButtonText?: string;
+  continueButtonText?: string;
 }
 
 function drawFromDistribution({ type, ...rest }: DistributionConfig): number {
@@ -175,7 +178,7 @@ function Deck({ label, onClick, disabled, side, animate: introAnimation = true }
 }
 
 export default function SamplingParadigm({
-  next, distributions, labels = ['A', 'B'], keys, hideResult = false, decisionOnly = false, introAnimation = true, decimalPlaces = 1, headings: customHeadings, wideLayout = false,
+  next, distributions, labels = ['A', 'B'], keys, hideResult = false, decisionOnly = false, introAnimation = true, decimalPlaces = 1, headings: customHeadings, wideLayout = false, minSamples, inactiveButtonText, continueButtonText,
 }: SamplingParadigmProps) {
   const th = t(useTheme());
   const [phase, setPhase] = useState<Phase>(decisionOnly ? 'deciding' : 'sampling');
@@ -188,6 +191,7 @@ export default function SamplingParadigm({
   const handleDrawRef = useRef((_deck: number) => {});
 
   const btnClass = `${th.buttonBg} cursor-pointer px-8 py-3 border-2 ${th.buttonBorder} font-bold ${th.buttonText} text-lg rounded-xl ${th.buttonShadow} hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all duration-150`;
+  const btnInactiveClass = `${th.buttonBg} px-8 py-3 border-2 ${th.buttonBorder} font-bold ${th.buttonText} text-lg rounded-xl ${th.buttonShadow} opacity-40 cursor-not-allowed transition-all duration-150`;
 
   const handleDraw = (deck: number) => {
     if (phase !== 'sampling' && phase !== 'deciding') return;
@@ -342,14 +346,22 @@ export default function SamplingParadigm({
 
       {/* Bottom button */}
       <div className="h-12 mt-24">
-        {phase === 'sampling' && (
-          <button className={btnClass} onClick={handleProceed} tabIndex={-1}>
-            Proceed to decision
-          </button>
-        )}
+        {phase === 'sampling' && (() => {
+          const tooFew = minSamples != null && samples.length < minSamples;
+          return (
+            <button
+              className={tooFew ? btnInactiveClass : btnClass}
+              onClick={handleProceed}
+              disabled={tooFew}
+              tabIndex={-1}
+            >
+              {tooFew && inactiveButtonText ? inactiveButtonText : 'Proceed to decision'}
+            </button>
+          );
+        })()}
         {decided && (
           <button className={btnClass} onClick={handleContinue} tabIndex={-1}>
-            Continue
+            {continueButtonText ?? 'Continue'}
           </button>
         )}
       </div>

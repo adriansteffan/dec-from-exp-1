@@ -44,7 +44,8 @@ const simulationConfig = {
 
 const samplingSimulators = {
   sampleSingle: (_tp: any, p: any) => {
-    if ((p.currentTrialMemory?.length ?? 0) >= (p.sampleCount ?? 20))
+    const target = Math.max(_tp.minSamples ?? 0, p.sampleCount ?? 20);
+    if ((p.currentTrialMemory?.length ?? 0) >= target)
       return { value: { deck: -1, rt: 0 }, participantState: p };
     return { value: { deck: uniform(0, 1) > 0.5 ? 0 : 1, rt: uniform(300, 1500) }, participantState: p };
   },
@@ -96,6 +97,14 @@ interface TrialConfig {
   treasureDisaster: string;
 }
 
+const familiarisationDistributions: [any, any] = (() => {
+  const risky = { type: 'discrete' as const, outcomes: [
+    { value: 13.4, weight: 0.5 }, { value: 3.8, weight: 0.5 },
+  ]};
+  const safe = { type: 'discrete' as const, outcomes: [{ value: 9.9, weight: 1 }] };
+  return uniform(0, 1) > 0.5 ? [safe, risky] : [risky, safe];
+})();
+
 const trialConfigs: TrialConfig[] = (() => {
   const domains = sample(['Gain', 'Loss', 'Mixed'], 5, { replace: false });
   const [a, b] = uniform(0, 1) > 0.5 ? ['Disaster', 'Treasure'] : ['Treasure', 'Disaster'];
@@ -130,7 +139,7 @@ const trialConfigs: TrialConfig[] = (() => {
 })();
 
 function scoreTrials(data: any[]) {
-  const trials = data.filter((d: any) => d.type === 'SamplingParadigm');
+  const trials = data.filter((d: any) => d.type === 'SamplingParadigm' && !d.name?.startsWith('familiarisation'));
   const scores = trials.map((d: any) => {
     const row = Array.isArray(d.responseData) ? d.responseData[0] : d.responseData;
     const choseRisky = row?.finalChoiceIndex === d.riskyDeckIndex;
@@ -175,7 +184,7 @@ function makeSamplingInstruction(name: string, ordinal = 'next') {
       centered: true,
       content: (
         <>
-          <p>The {ordinal} trial is about to start.</p>
+          <p>The {ordinal} scored trial is about to start.</p>
           <p>Please collect information about the two lotteries you can choose between by clicking the buttons on screen.</p>
           <p>Once you are ready to make a decision, click "Proceed to decision" to indicate which lottery you choose to determine part of your bonus payment.</p>
         </>
@@ -342,6 +351,37 @@ const experiment = prepareTimeline([
         </>
       ),
     },
+  },
+  {
+    name: 'familiarisation_intro',
+    type: 'Text',
+    props: {
+      buttonText: 'Continue',
+      animate: true,
+      content: (
+        <>
+          <p>Before you begin, you will get the chance to familiarise yourself with the basic task structure in a practice round, which will not count towards your bonus.</p>
+          <p>To make sure you will get a precise impression, you will need to draw a minimum of 20 outcomes from the two lotteries.</p>
+        </>
+      ),
+    },
+  },
+  {
+    name: 'familiarisation_trial',
+    type: 'SamplingParadigm',
+    simulate: true,
+    props: {
+      distributions: familiarisationDistributions,
+      labels: ['A', 'B'] as [string, string],
+      keys: samplingKeys,
+      hideResult: false,
+      wideLayout: true,
+      minSamples: 20,
+      inactiveButtonText: 'Keep searching',
+      continueButtonText: 'Continue to scored trials',
+      headings: { result: <span className="text-lg" style={{ fontWeight: 400 }}><strong style={{ fontWeight: 700 }}>The outcome has been drawn from your chosen lottery.</strong><br />In the following, scored trials, you will not see the final<br />outcome immediately after your choice, but rather<br />at the end of the experiment.</span> },
+    },
+    simulators: samplingSimulators,
   },
   makeSamplingInstruction('instruction_practice_1', 'first'),
   makeSamplingTrial(trialConfigs[0], 'practice_1'),
