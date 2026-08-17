@@ -212,12 +212,11 @@ function makeGeneralVoiceRecording(name: string, isRepeat = false) {
       content: isRepeat ? (
         <>
           <p>You will now record two descriptions again, but please note that they will be given to a <strong>different participant</strong>, so do not be afraid to repeat aspects of your earlier descriptions, the repetition is necessary.</p>
-          <p>A reminder of the previous instructions:</p>
           <Paragraphs lines={GENERAL_VOICE_RECORDING_PARAGRAPHS} />
         </>
       ) : (
         <>
-          <p>We will now ask you to record your experience with your microphone. You will be asked to make <strong>two recordings</strong>, both of which will be given to the same participant, <strong>so please read the following instructions carefully!</strong></p>
+          <p>We will now ask you to record your experience with your microphone.</p>
           <Paragraphs lines={GENERAL_VOICE_RECORDING_PARAGRAPHS} />
         </>
       ),
