@@ -147,6 +147,8 @@ const trialConfigs: TrialConfig[] = (() => {
   });
 })();
 
+const MAX_BONUS = 2;
+
 function scoreTrials(data: any[]) {
   const trials = data.filter((d: any) => d.type === 'SamplingParadigm' && !d.name?.startsWith('familiarisation'));
   const scores = trials.map((d: any) => {
@@ -160,7 +162,7 @@ function scoreTrials(data: any[]) {
   const meanScore = Math.min(mean(scores), 8);
   const hasShortRecording = data.filter((d: any) => d.type === 'VoiceRecording')
     .some((r: any) => (r.responseData?.recordingDuration ?? 0) < minRecordingDuration);
-  const bonus = hasShortRecording ? 0 : Math.max(0, ((meanScore - 2) / (8 - 2)) * 1.5);
+  const bonus = hasShortRecording ? 0 : Math.max(0, ((meanScore - 2) / (8 - 2)) * MAX_BONUS);
   return { scores, meanScore, hasShortRecording, bonus };
 }
 
@@ -269,10 +271,10 @@ const experiment = prepareTimeline([
         <>
           <h1><strong>Welcome!</strong></h1>
           <p>
-            Thank you for your interest in this study. It will take approximately <strong>10 minutes</strong> to complete. {/* PLACEHOLDER: confirm with pilot timings */}
+            Thank you for your interest in this study. It will take approximately <strong>10 minutes</strong> to complete.
           </p>
           <p>
-            You will be presented with a decision-making task involving lotteries. At the end, we will ask you about your experience - you won't have to type anything, we will <strong>record your voice</strong>.
+            You will be presented with a decision-making task involving lotteries. Throughout the experiment, we will ask you about your experience - you won't have to type anything, we will <strong>record your voice</strong>.
           </p>
           <p>
             The recordings themselves will <strong>not</strong> be used for anything other than transcribing (ensuring that they are anonymous). The transcribed text will be processed further for research purposes.
@@ -317,7 +319,7 @@ const experiment = prepareTimeline([
           </p>
           <h3><strong>Remuneration</strong></h3>
           <p>
-            For full participation in this study you will receive £0.75 via Prolific as base payment. In addition, you may receive a bonus payment of up to £1.50 that is dependent on your performance in the study. The bonus payment will be paid separately via Prolific.
+            For full participation in this study you will receive £1.00 via Prolific as base payment. In addition, you may receive a bonus payment of up to £{MAX_BONUS.toFixed(2)} that is dependent on your performance in the study. The bonus payment will be paid separately via Prolific.
           </p>
           <h3><strong>Consent</strong></h3>
           <p>
@@ -371,7 +373,7 @@ const experiment = prepareTimeline([
             In the <strong>decision phase</strong>, you will click one of the two lotteries to receive a randomly drawn outcome that will count towards your bonus. In this phase, you will not see what the outcome is. You will be shown all the lottery outcomes that resulted from your decisions at the end of the experiment.
           </p>
           <p>
-            How well you perform will determine your bonus payment, which can <strong>amount to a maximum of £1.50</strong>.
+            How well you perform will determine your bonus payment, which can <strong>amount to a maximum of £{MAX_BONUS.toFixed(2)}</strong>.
           </p>
         </>
       ),
