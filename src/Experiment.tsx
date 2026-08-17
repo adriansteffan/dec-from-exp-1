@@ -19,16 +19,22 @@ interface Problem {
 
 const problems = Papa.parse<Problem>(problemsCsv, { header: true, dynamicTyping: true, skipEmptyLines: true }).data;
 
-const VOICE_RECORDING_PARAGRAPHS = [
-  'Please describe the two options you just had to decide between for a participant in an upcoming study. They will have to make a choice between the same two lotteries as you, but your description will be their main source of information.',
-  'So unlike you, they will not be able to search for information themselves but will go straight to the decision screen after reading your description.',
-  'Please include all the information you think is valuable to make an informed decision, including your personal reasons, as their bonus payment will also depend on their decision and therefore on the quality of the description you provide.',
+
+const GENERAL_VOICE_RECORDING_PARAGRAPHS = [
+  'Please describe the two options you just had to decide between for a participant in an upcoming study. They will have to make a choice between the same two lotteries as you, but your descriptions will be their main source of information.',
+  'So unlike you, they will not be able to search for information themselves but will go straight to the decision screen after reading your descriptions.',
+  'Please include all the information you think is valuable to make an informed decision, including your reasons, as their bonus payment will also depend on their decision and therefore on the quality of the descriptions you provide.',
+  'Right after this recording, we will ask you for a second one on a more specific question. That second recording will also be passed on to the same participant.',
 ];
 
-const VOICE_RECORDING_PROMPT = VOICE_RECORDING_PARAGRAPHS.join('\n');
+const REASONS_VOICE_RECORDING_PARAGRAPHS = [
+  'Please record a second description for the same participant focussing specifically on the reasons for your choice:',
+  'What made you decide the way you did? Were there particular things you paid attention to, moments that were important to your decision, or specific emotions that contributed to your decision?',
+  'This second recording will be passed on together with your first one, so please explain your reasons as clearly as you can.' 
+];
 
-const VoiceRecordingBody = () => (
-  <>{VOICE_RECORDING_PARAGRAPHS.map((p, i) => <p key={i}>{p}</p>)}</>
+const Paragraphs = ({ lines }: { lines: string[] }) => (
+  <>{lines.map((p, i) => <p key={i}>{p}</p>)}</>
 );
 
 
@@ -62,7 +68,7 @@ const samplingSimulators = {
   },
 };
 
-const voiceRecordingSimulators = {
+const makeRecordingSimulators = (promptParagraphs: string[]) => ({
   respondTTS: async (_input: any, participant: any) => {
     const trials = participant.trialMemory ?? {};
     const keys = Object.keys(trials);
@@ -76,12 +82,15 @@ const voiceRecordingSimulators = {
       value: await invokeLLM(
         // @ts-ignore
         { provider: 'openai', model: 'gpt-4o-mini', apiKey: process.env.OPENAI_API_KEY },
-        `You are a participant in a study. You just completed a task where you could freely draw from two lotteries to learn about their payoff distributions, then chose one lottery for your final reward.\n\nHere is what you saw during sampling: ${samplingLog}\n\n${choice}\n\nNow the experimenters ask you:\n"${VOICE_RECORDING_PROMPT}"\n\nRespond naturally as if speaking aloud (this will be a voice recording). Keep in mind to act the role of a participant, not a helpful ai agent. You want to target a recording of 20-30 seconds and keep it brief, and your memory is also imperfect`,
+        `You are a participant in a study. You just completed a task where you could freely draw from two lotteries to learn about their payoff distributions, then chose one lottery for your final reward.\n\nHere is what you saw during sampling: ${samplingLog}\n\n${choice}\n\nNow the experimenters ask you:\n"${promptParagraphs.join('\n')}"\n\nRespond naturally as if speaking aloud (this will be a voice recording). Keep in mind to act the role of a participant, not a helpful ai agent. You want to target a recording of 20-30 seconds and keep it brief, and your memory is also imperfect`,
       ),
       participantState: participant,
     };
   },
-};
+});
+
+const generalVoiceRecordingSimulators = makeRecordingSimulators(GENERAL_VOICE_RECORDING_PARAGRAPHS);
+const reasonsVoiceRecordingSimulators = makeRecordingSimulators(REASONS_VOICE_RECORDING_PARAGRAPHS);
 
 const keyLeft = getParam('keyLeft', '', 'string', 'Key for left lottery (empty = disabled)');
 const keyRight = getParam('keyRight', '', 'string', 'Key for right lottery (empty = disabled)');
@@ -193,29 +202,46 @@ function makeSamplingInstruction(name: string, ordinal = 'next') {
   };
 }
 
-function makeVoiceRecording(name: string, isRepeat = false) {
+const SHORT_RECORDING_WARNING = <>Your recording seems quite short. Please add more detail so the next participant can make an informed choice. You can press the record button again to continue or use the trash button to start over.<br /><strong>If you proceed without adding to your recording, you will forego your bonus payment.</strong></>;
+
+function makeGeneralVoiceRecording(name: string, isRepeat = false) {
   return {
     name,
     type: 'VoiceRecording',
     props: {
       content: isRepeat ? (
         <>
-          <p>You will now record your experience again, but please note that this description will be given to a <strong>different participant</strong>, so do not be afraid to repeat aspects of your first description, the repetition is necessary.</p>
+          <p>You will now record two descriptions again, but please note that they will be given to a <strong>different participant</strong>, so do not be afraid to repeat aspects of your earlier descriptions, the repetition is necessary.</p>
           <p>A reminder of the previous instructions:</p>
-          <VoiceRecordingBody />
+          <Paragraphs lines={GENERAL_VOICE_RECORDING_PARAGRAPHS} />
         </>
       ) : (
         <>
-          <p>We will now ask you to record your experience with your microphone, <strong>so please read the following instructions carefully!</strong></p>
-          <VoiceRecordingBody />
+          <p>We will now ask you to record your experience with your microphone. You will be asked to make <strong>two recordings in a row</strong>, both of which will be given to the same participant, <strong>so please read the following instructions carefully!</strong></p>
+          <Paragraphs lines={GENERAL_VOICE_RECORDING_PARAGRAPHS} />
         </>
       ),
       minDuration: minRecordingDuration,
-      shortRecordingWarning: <>Your recording seems quite short. Please add more detail so the next participant can make an informed choice. You can press the record button again to continue or use the trash button to start over.<br /><strong>If you proceed without adding to your recording, you will forego your bonus payment.</strong></>,
+      shortRecordingWarning: SHORT_RECORDING_WARNING,
       silenceWarningSec: 5,
       animate: true,
     },
-    simulators: voiceRecordingSimulators,
+    simulators: generalVoiceRecordingSimulators,
+  };
+}
+
+function makeReasonsVoiceRecording(name: string) {
+  return {
+    name,
+    type: 'VoiceRecording',
+    props: {
+      content: <Paragraphs lines={REASONS_VOICE_RECORDING_PARAGRAPHS} />,
+      minDuration: minRecordingDuration,
+      shortRecordingWarning: SHORT_RECORDING_WARNING,
+      silenceWarningSec: 5,
+      animate: true,
+    },
+    simulators: reasonsVoiceRecordingSimulators,
   };
 }
 
@@ -244,13 +270,13 @@ const experiment = prepareTimeline([
         <>
           <h1><strong>Welcome!</strong></h1>
           <p>
-            Thank you for your interest in this study. It will take approximately <strong>7 minutes</strong> to complete.
+            Thank you for your interest in this study. It will take approximately <strong>10 minutes</strong> to complete. {/* PLACEHOLDER: confirm with pilot timings */}
           </p>
           <p>
             You will be presented with a decision-making task involving lotteries. At the end, we will ask you about your experience - you won't have to type anything, we will <strong>record your voice</strong>.
           </p>
           <p>
-            The recording itself will <strong>not</strong> be used for anything other than transcribing (ensuring that it is anonymous). The transcribed text will be processed further for research purposes.
+            The recordings themselves will <strong>not</strong> be used for anything other than transcribing (ensuring that they are anonymous). The transcribed text will be processed further for research purposes.
           </p>
           <p>
             Please click the button below to proceed to the consent page.
@@ -273,14 +299,14 @@ const experiment = prepareTimeline([
             Participation in this study is voluntary. You can withdraw at any time without indication of a reason by closing the browser window and returning your participation on Prolific before having completed the study. After withdrawing, however, you will not be allowed to participate again.
           </p>
           <p>
-            The study will take approximately 7 minutes, during which you will be asked to make simple decisions about lotteries.
+            The study will take approximately 10 minutes, during which you will be asked to make simple decisions about lotteries.
           </p>
           <h3><strong>Privacy</strong></h3>
           <p>
             With the exception of your Prolific ID, no identifying data will be collected. Only Prolific can identify you through your Prolific ID.
           </p>
           <p>
-            Your voice recording will be transcribed and only the transcription will be used for analysis. The recording will be deleted after the transcription is checked for quality.
+            Your voice recordings will be transcribed and only the transcriptions will be used for analysis. The recordings will be deleted after the transcriptions are checked for quality.
           </p>
           <h3><strong>De-identified Data</strong></h3>
           <p>
@@ -398,18 +424,22 @@ const experiment = prepareTimeline([
     return { rareEventSeen: sawRare };
   }},
   { type: 'IF_BLOCK', cond: (_d: any, store: any) => store.rareEventSeen, timeline: [
-    makeVoiceRecording('voicerecording_1'),
+    makeGeneralVoiceRecording('voicerecording_1_general'),
+    makeReasonsVoiceRecording('voicerecording_1_reasons'),
     makeSamplingInstruction('instruction_test_2'),
     makeSamplingTrial(trialConfigs[3], 'test_2'),
-    makeVoiceRecording('voicerecording_2', true),
+    makeGeneralVoiceRecording('voicerecording_2_general', true),
+    makeReasonsVoiceRecording('voicerecording_2_reasons'),
   ]},
   { type: 'IF_BLOCK', cond: (_d: any, store: any) => !store.rareEventSeen, timeline: [
     makeSamplingInstruction('instruction_test_1'),
     makeSamplingTrial(trialConfigs[3], 'test_1'),
-    makeVoiceRecording('voicerecording_1'),
+    makeGeneralVoiceRecording('voicerecording_1_general'),
+    makeReasonsVoiceRecording('voicerecording_1_reasons'),
     makeSamplingInstruction('instruction_test_2'),
     makeSamplingTrial(trialConfigs[4], 'test_2'),
-    makeVoiceRecording('voicerecording_2', true),
+    makeGeneralVoiceRecording('voicerecording_2_general', true),
+    makeReasonsVoiceRecording('voicerecording_2_reasons'),
   ]},
   { type: 'UPDATE_STORE', fun: (data: any) => {
     const { scores, meanScore, hasShortRecording, bonus } = scoreTrials(data);

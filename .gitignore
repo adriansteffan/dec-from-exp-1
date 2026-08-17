@@ -30,3 +30,5 @@ ios
 data
 .env
 .reactive-cache
+
+__pycache__

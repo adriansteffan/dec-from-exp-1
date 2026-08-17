@@ -71,7 +71,7 @@ def main():
     parser.add_argument(
         "--overwrite",
         action="store_true",
-        help="Re-transcribe even if transcriptions.csv already exists",
+        help="Re-transcribe even if a transcriptions CSV already exists",
     )
     parser.add_argument(
         "--backend",

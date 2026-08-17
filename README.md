@@ -163,11 +163,11 @@ npm run transcribe:gpu
 ### Options
 
 ```
-npm run transcribe -- --overwrite       # re-transcribe even if transcriptions.csv exists
+npm run transcribe -- --overwrite       # re-transcribe even if a transcriptions CSV exists
 npm run transcribe -- --model small     # use a different model
 ```
 
-Output: `transcriptions.csv` in each participant's data directory with `filename,text` columns. The model is cached in a Docker volume, so it only downloads once.
+Output: `transcriptions.<sessionID>.csv` in each participant's data directory with `filename,text` columns. The model is cached in a Docker volume, so it only downloads once.
 
 
 ## Target: Windows or MacOS
