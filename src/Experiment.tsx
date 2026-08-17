@@ -217,7 +217,7 @@ function makeGeneralVoiceRecording(name: string, isRepeat = false) {
         </>
       ) : (
         <>
-          <p>We will now ask you to record your experience with your microphone. You will be asked to make <strong>two recordings in a row</strong>, both of which will be given to the same participant, <strong>so please read the following instructions carefully!</strong></p>
+          <p>We will now ask you to record your experience with your microphone. You will be asked to make <strong>two recordings</strong>, both of which will be given to the same participant, <strong>so please read the following instructions carefully!</strong></p>
           <Paragraphs lines={GENERAL_VOICE_RECORDING_PARAGRAPHS} />
         </>
       ),
