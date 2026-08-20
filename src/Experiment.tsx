@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ExperimentRunner, sampleParticipants, prolificId, invokeLLM, uniform, getParam, sample, selectPrevTrialData, mean, prepareTimeline } from '@adriansteffan/reactive';
 import SamplingParadigm from './SamplingParadigm';
+import OutcomeSequence from './OutcomeSequence';
 import Papa from 'papaparse';
 import problemsCsv from './problems.csv?raw';
 
@@ -96,6 +97,7 @@ const keyLeft = getParam('keyLeft', '', 'string', 'Key for left lottery (empty =
 const keyRight = getParam('keyRight', '', 'string', 'Key for right lottery (empty = disabled)');
 const samplingKeys = keyLeft && keyRight ? [keyLeft, keyRight] as [string, string] : undefined;
 const minRecordingDuration = getParam('minRecordingDuration', 13000, 'number', 'Minimum voice recording duration (ms)');
+const showOutcomeReminder = getParam('outcomeReminder', false, 'boolean', 'Show the outcome sequence reminder on the recording screens');
 
 interface TrialConfig {
   problem: string;
@@ -204,21 +206,40 @@ function makeSamplingInstruction(name: string, ordinal = 'next') {
   };
 }
 
+const prevSamples = (data: any[]) => {
+  const rows = selectPrevTrialData(data, 'SamplingParadigm')?.responseData ?? [];
+  // responseData is one row per draw, each carrying a copy of the trial-level summary
+  // fields. A trial where nobody drew emits that summary row on its own instead.
+  return rows[0]?.totalSamples > 0 ? rows : [];
+};
+
+const outcomeReminder = (data: any[]) => {
+  if (!showOutcomeReminder) return null;
+  const samples = prevSamples(data);
+  if (!samples.length) return null;
+  return (
+    <>
+      <p>Below, you can view the cards that you have seen in the last round, feel free to have another look at them before or while you record your message.</p>
+      <OutcomeSequence samples={samples} />
+    </>
+  );
+};
+
 const SHORT_RECORDING_WARNING = <>Your recording seems quite short. Please add more detail so the next participant can make an informed choice. You can press the record button again to continue or use the trash button to start over.<br /><strong>If you proceed without adding to your recording, you will forego your bonus payment.</strong></>;
 
 function makeGeneralVoiceRecording(name: string, isRepeat = false) {
   return {
     name,
     type: 'VoiceRecording',
-    props: {
-      content: isRepeat ? (
+    props: (data: any) => ({
+      content: (
         <>
-          <p>You will now record two descriptions again, but please note that they will be given to a <strong>different participant</strong>, so do not be afraid to repeat aspects of your earlier descriptions, the repetition is necessary.</p>
-          <Paragraphs lines={GENERAL_VOICE_RECORDING_PARAGRAPHS} />
-        </>
-      ) : (
-        <>
-          <p>We will now ask you to record your experience with your microphone.</p>
+          {isRepeat ? (
+            <p>You will now record two descriptions again, but please note that they will be given to a <strong>different participant</strong>, so do not be afraid to repeat aspects of your earlier descriptions, the repetition is necessary.</p>
+          ) : (
+            <p>We will now ask you to record your experience with your microphone.</p>
+          )}
+          {outcomeReminder(data)}
           <Paragraphs lines={GENERAL_VOICE_RECORDING_PARAGRAPHS} />
         </>
       ),
@@ -226,7 +247,7 @@ function makeGeneralVoiceRecording(name: string, isRepeat = false) {
       shortRecordingWarning: SHORT_RECORDING_WARNING,
       silenceWarningSec: 5,
       animate: true,
-    },
+    }),
     simulators: generalVoiceRecordingSimulators,
   };
 }
@@ -235,13 +256,18 @@ function makeReasonsVoiceRecording(name: string) {
   return {
     name,
     type: 'VoiceRecording',
-    props: {
-      content: <Paragraphs lines={REASONS_VOICE_RECORDING_PARAGRAPHS} />,
+    props: (data: any) => ({
+      content: (
+        <>
+          {outcomeReminder(data)}
+          <Paragraphs lines={REASONS_VOICE_RECORDING_PARAGRAPHS} />
+        </>
+      ),
       minDuration: minRecordingDuration,
       shortRecordingWarning: SHORT_RECORDING_WARNING,
       silenceWarningSec: 5,
       animate: true,
-    },
+    }),
     simulators: reasonsVoiceRecordingSimulators,
   };
 }
