@@ -22,14 +22,14 @@ const problems = Papa.parse<Problem>(problemsCsv, { header: true, dynamicTyping:
 
 
 const GENERAL_VOICE_RECORDING_PARAGRAPHS = [
-  'Please describe the two options you just had to decide between for a participant in an upcoming study. They will have to make a choice between the same two lotteries as you, but your descriptions will be their main source of information.',
+  'Please describe the most recent decision you just made for a participant in an upcoming study. They will have to make a choice between the same two options as you, but your descriptions will be their main source of information.',
   'So unlike you, they will not be able to search for information themselves but will go straight to the decision screen after reading your descriptions.',
   'Please include all the information you think is valuable to make an informed decision, including your reasons, as their bonus payment will also depend on their decision and therefore on the quality of the descriptions you provide.',
   'Right after this recording, we will ask you for a second one on a more specific question. That second recording will also be passed on to the same participant.',
 ];
 
 const REASONS_VOICE_RECORDING_PARAGRAPHS = [
-  'Please record a second description for the same participant focussing specifically on the reasons for your choice:',
+  'Please record a second description for the same participant focussing specifically on the reasons for your most recent decision:',
   'What made you decide the way you did? Were there particular things you paid attention to, moments that were important to your decision, or specific emotions that contributed to your decision?',
   'This second recording will be passed on together with your first one, so please explain your reasons as clearly as you can.' 
 ];
