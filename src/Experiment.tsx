@@ -75,9 +75,9 @@ const makeRecordingSimulators = (promptParagraphs: string[]) => ({
     const keys = Object.keys(trials);
     const s = keys.length ? trials[keys[keys.length - 1]] : null;
     const samplingLog = s?.samples?.length
-      ? s.samples.map((d: any) => `Drew ${d.value} from Lottery ${d.deck === 0 ? 'A' : 'B'}`).join('; ')
+      ? s.samples.map((d: any) => `Drew ${d.value} from the ${d.deck === 0 ? 'Blue' : 'Green'} lottery`).join('; ')
       : 'no samples available';
-    const choice = s ? `You chose Lottery ${s.finalChoice}${s.finalValue != null ? ` and received ${s.finalValue.toFixed(1)}` : ' (you were not shown the result)'}.` : '';
+    const choice = s ? `You chose the ${s.finalChoice} lottery${s.finalValue != null ? ` and received ${s.finalValue.toFixed(1)}` : ' (you were not shown the result)'}.` : '';
     return {
       // @ts-ignore - process.env is available in simulation (Node) context
       value: await invokeLLM(
@@ -177,7 +177,7 @@ function makeSamplingTrial(tc: TrialConfig, name: string) {
     metadata,
     props: {
       distributions: tc.distributions,
-      labels: ['A', 'B'] as [string, string],
+      labels: ['Blue', 'Green'] as [string, string],
       keys: samplingKeys,
       hideResult: true,
       wideLayout: true,
@@ -425,7 +425,7 @@ const experiment = prepareTimeline([
     simulate: true,
     props: {
       distributions: familiarisationDistributions,
-      labels: ['A', 'B'] as [string, string],
+      labels: ['Blue', 'Green'] as [string, string],
       keys: samplingKeys,
       hideResult: false,
       wideLayout: true,

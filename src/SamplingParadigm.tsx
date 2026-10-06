@@ -41,7 +41,7 @@ registerFlattener('SamplingParadigm', 'samplingparadigm', arrayFlattener);
 
 registerSimulation('SamplingParadigm', (trialProps, _es, simulators, participant) => {
   const dists = trialProps.distributions as [DistributionConfig, DistributionConfig];
-  const labels = (trialProps.labels as [string, string]) || ['A', 'B'];
+  const labels = (trialProps.labels as [string, string]) || ['Blue', 'Green'];
 
   let samples: Sample[] = [];
   if (!trialProps.decisionOnly) {
@@ -71,8 +71,8 @@ registerSimulation('SamplingParadigm', (trialProps, _es, simulators, participant
     hideResult: !!trialProps.hideResult, decisionOnly: !!trialProps.decisionOnly,
     totalSamples: samples.length,
     samplingDuration, decisionDuration, totalTime: samplingDuration + decisionDuration,
-    distributionA: JSON.stringify(dists[0]),
-    distributionB: JSON.stringify(dists[1]),
+    distributionBlue: JSON.stringify(dists[0]),
+    distributionGreen: JSON.stringify(dists[1]),
   };
   
   const responseData = samples.length === 0
@@ -120,8 +120,14 @@ const CARD_EXIT = { opacity: 0, transition: { duration: 0 } };
 const CARD_TRANSITION = { duration: 0.3, ease: 'easeOut' as const };
 const DECK_EXIT = { opacity: 0, transition: { duration: 0.4 } };
 
-const DECK_CARD_CLASS = 'absolute inset-0 bg-white border-2 border-black rounded-xl';
-const DECK_FRONT_BASE = 'relative z-10 w-44 h-60 bg-white border-2 border-black rounded-xl flex items-center justify-center select-none';
+
+export const DECK_COLORS = [
+  { bg: 'bg-[#cee7fe]', text: 'text-[#006adc]' },
+  { bg: 'bg-[#ccebd7]', text: 'text-[#18794e]' },
+];
+
+const DECK_CARD_CLASS = 'absolute inset-0 border-2 border-black rounded-xl';
+const DECK_FRONT_BASE = 'relative z-10 w-44 h-60 border-2 border-black rounded-xl flex items-center justify-center select-none';
 
 const KEY_LABELS: Record<string, string> = {
   arrowleft: '\u2190', arrowright: '\u2192', arrowup: '\u2191', arrowdown: '\u2193',
@@ -135,7 +141,7 @@ const CARD_LAYERS = [
   { offset: '', delay: 0.2 }, // top card
 ];
 
-function Deck({ label, onClick, disabled, side, animate: introAnimation = true }: { label: string; onClick: () => void; disabled?: boolean; side: 'left' | 'right'; animate?: boolean }) {
+function Deck({ label, color, onClick, disabled, side, animate: introAnimation = true }: { label: string; color: typeof DECK_COLORS[number]; onClick: () => void; disabled?: boolean; side: 'left' | 'right'; animate?: boolean }) {
   return (
     <div className="relative w-44 h-60">
       {CARD_LAYERS.map((layer, i) => {
@@ -157,10 +163,10 @@ function Deck({ label, onClick, disabled, side, animate: introAnimation = true }
                 onClick={onClick}
                 disabled={disabled}
                 tabIndex={-1}
-                className={`${DECK_FRONT_BASE} transition-transform duration-150 ${disabled ? '' : 'cursor-pointer hover:-translate-y-1.5'}`}
+                className={`${DECK_FRONT_BASE} ${color.bg} transition-transform duration-150 ${disabled ? '' : 'cursor-pointer hover:-translate-y-1.5'}`}
               >
                 <div className="absolute inset-2 border-2 border-black rounded-lg pointer-events-none" />
-                <span className="relative text-4xl font-black">{label}</span>
+                <span className={`relative text-3xl font-besley font-bold ${color.text}`}>{label}</span>
               </button>
             </motion.div>
           );
@@ -168,7 +174,7 @@ function Deck({ label, onClick, disabled, side, animate: introAnimation = true }
         return (
           <motion.div
             key={i}
-            className={`${DECK_CARD_CLASS} ${layer.offset}`}
+            className={`${DECK_CARD_CLASS} ${color.bg} ${layer.offset}`}
             {...introProps}
           />
         );
@@ -178,7 +184,7 @@ function Deck({ label, onClick, disabled, side, animate: introAnimation = true }
 }
 
 export default function SamplingParadigm({
-  next, distributions, labels = ['A', 'B'], keys, hideResult = false, decisionOnly = false, introAnimation = true, decimalPlaces = 1, headings: customHeadings, wideLayout = false, minSamples, inactiveButtonText, continueButtonText,
+  next, distributions, labels = ['Blue', 'Green'], keys, hideResult = false, decisionOnly = false, introAnimation = true, decimalPlaces = 1, headings: customHeadings, wideLayout = false, minSamples, inactiveButtonText, continueButtonText,
 }: SamplingParadigmProps) {
   const th = t(useTheme());
   const [phase, setPhase] = useState<Phase>(decisionOnly ? 'deciding' : 'sampling');
@@ -242,8 +248,8 @@ export default function SamplingParadigm({
       finalChoice: labels[final_!.choice], finalChoiceIndex: final_!.choice, finalValue: final_!.value,
       hideResult, decisionOnly, totalSamples: samples.length, totalTime: now - startTime.current,
       samplingDuration, decisionDuration,
-      distributionA: JSON.stringify(distributions[0]),
-      distributionB: JSON.stringify(distributions[1]),
+      distributionBlue: JSON.stringify(distributions[0]),
+      distributionGreen: JSON.stringify(distributions[1]),
     };
     if (samples.length === 0) {
       next([shared]);
@@ -293,7 +299,7 @@ export default function SamplingParadigm({
                 transition={{ duration: 0.4 }}
                 style={{ order: idx * 2 }}
               >
-                <Deck label={labels[idx]} onClick={() => handleDraw(idx)} disabled={decided} side={side} animate={introAnimation} />
+                <Deck label={labels[idx]} color={DECK_COLORS[idx]} onClick={() => handleDraw(idx)} disabled={decided} side={side} animate={introAnimation} />
               </motion.div>
             );
           })}
@@ -321,19 +327,13 @@ export default function SamplingParadigm({
                 {latestCard && (
                   <motion.div
                     key={latestCard.key}
-                    className={`${wideLayout ? 'w-44 h-60 absolute top-0' : 'absolute inset-0'} bg-white border-2 border-black rounded-xl flex items-center justify-center select-none`}
+                    className={`${wideLayout ? 'w-44 h-60 absolute top-0' : 'absolute inset-0'} ${DECK_COLORS[latestCard.deck].bg} border-2 border-black rounded-xl flex items-center justify-center select-none`}
                     initial={cardInitial(latestCard.deck)}
                     animate={{ ...CARD_ANIMATE, x: cardRestX }}
                     exit={CARD_EXIT}
                     transition={CARD_TRANSITION}
                   >
-                    <span className="absolute top-2 left-3 text-xs font-bold text-gray-500">
-                      {labels[latestCard.deck]}
-                    </span>
-                    <span className="absolute bottom-2 right-3 text-xs font-bold text-gray-500 rotate-180">
-                      {labels[latestCard.deck]}
-                    </span>
-                    <span className="text-3xl font-black">
+                    <span className={`text-3xl font-black ${DECK_COLORS[latestCard.deck].text}`}>
                       {latestCard.value.toFixed(decimalPlaces)}
                     </span>
                   </motion.div>

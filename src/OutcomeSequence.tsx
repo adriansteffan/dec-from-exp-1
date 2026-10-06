@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTheme, t } from '@adriansteffan/reactive';
 import { HiChevronLeft, HiChevronRight } from 'react-icons/hi2';
+import { DECK_COLORS } from './SamplingParadigm';
 
 // the number of draws visible in one scrolling width should be constant per participant
 const VISIBLE = 18;
@@ -20,20 +21,20 @@ const CARD_BASE = 'rounded-md border-2 flex items-center justify-center shrink-0
 // The stack runs upwards out of the box: the hindmost (lowest) card fills the row, and the
 // front card overhangs above it, so the deck's baseline lines up with the card rows.
 const STACK = 3;
-const MiniDeck = ({ label }: { label: string }) => (
+const MiniDeck = ({ label, deck }: { label: string; deck: number }) => (
   <div className='relative shrink-0' style={{ width: CARD_W, height: CARD_H }}>
     {[0, -STACK].map((o) => (
       <div
         key={o}
-        className='absolute inset-0 bg-white border-2 border-black rounded-md'
+        className={`absolute inset-0 ${DECK_COLORS[deck].bg} border-2 border-black rounded-md`}
         style={{ transform: `translate(${o}px, ${o}px)` }}
       />
     ))}
     <div
-      className='absolute inset-0 bg-white border-2 border-black rounded-md flex items-center justify-center'
+      className={`absolute inset-0 ${DECK_COLORS[deck].bg} border-2 border-black rounded-md flex items-center justify-center`}
       style={{ transform: `translate(${-2 * STACK}px, ${-2 * STACK}px)` }}
     >
-      <span className='relative font-black' style={{ fontSize: 16 }}>
+      <span className={`relative font-besley font-bold ${DECK_COLORS[deck].text}`} style={{ fontSize: 10 }}>
         {label}
       </span>
     </div>
@@ -42,7 +43,7 @@ const MiniDeck = ({ label }: { label: string }) => (
 
 export default function OutcomeSequence({
   samples,
-  labels = ['A', 'B'],
+  labels = ['Blue', 'Green'],
   decimalPlaces = 1,
 }: {
   samples: any[];
@@ -96,14 +97,14 @@ export default function OutcomeSequence({
   const cell = (s: any, deck: number) =>
     s.deck === deck ? (
       <div
-        className={`${CARD_BASE} bg-white border-black font-black tabular-nums`}
+        className={`${CARD_BASE} ${DECK_COLORS[deck].bg} border-black font-black ${DECK_COLORS[deck].text} tabular-nums`}
         style={{ width: CARD_W, height: CARD_H, fontSize: 11 }}
       >
         {s.value.toFixed(decimalPlaces)}
       </div>
     ) : (
       <div
-        className={`${CARD_BASE} bg-white border-black opacity-30 p-1`}
+        className={`${CARD_BASE} ${DECK_COLORS[deck].bg} border-black opacity-30 p-1`}
         style={{ width: CARD_W, height: CARD_H }}
       >
         <div className='w-full h-full border border-black rounded-sm' />
@@ -126,8 +127,8 @@ export default function OutcomeSequence({
       {/* the decks' front cards overhang 2*STACK to the left, so give that back as margin */}
       <div className='flex flex-col shrink-0' style={{ gap: ROW_GAP, marginLeft: 2 * STACK }}>
         <div style={{ height: NUM_H }} />
-        <MiniDeck label={labels[0]} />
-        <MiniDeck label={labels[1]} />
+        <MiniDeck label={labels[0]} deck={0} />
+        <MiniDeck label={labels[1]} deck={1} />
       </div>
 
       <div
